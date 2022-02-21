@@ -53,8 +53,8 @@ def send_message(bot, message):
 
 
 def get_api_answer(current_timestamp):
-    """
-    Получает ответ api, если сервер недоступен
+    """.
+    Получает ответ api, если сервер недоступен,
     то выводится ошибка с кодом ответа сервера.
     """
     timestamp = current_timestamp
@@ -70,7 +70,7 @@ def get_api_answer(current_timestamp):
 
 
 def check_response(response):
-    """
+    """.
     Проверка ответа api на корректность,
     ожидаем список.
     """
@@ -94,7 +94,7 @@ def parse_status(homework):
 
 
 def check_tokens():
-    """
+    """.
     Проверяет доступность переменных окружения,
     которые необходимы для работы программы.
     """
