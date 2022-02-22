@@ -78,7 +78,7 @@ def check_response(response):
     Проверка ответа api на корректность,
     ожидаем список.
     """
-    # Через get не хочет
+    # Через get не хочет, все тесты перестают работать)
     if type(response['homeworks']) is not list:
         raise NotListError(
             'некорректный ответ API. "Homeworks" должен быть списком'
