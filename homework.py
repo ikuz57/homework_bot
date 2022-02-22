@@ -6,7 +6,7 @@ import requests
 import logging
 import os
 
-from exceptions import api_error, parse_error, status_key_error, token_error
+from exceptions import ApiError, NotListError, StatusKeyError, TokenError
 
 
 load_dotenv()
@@ -16,7 +16,7 @@ PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-RETRY_TIME = 600
+RETRY_TIME = 10
 ENDPOINT = 'https://practicum.yandex.ru/api/user_api/homework_statuses/'
 HEADERS = {'Authorization': f'OAuth {PRACTICUM_TOKEN}'}
 
@@ -40,7 +40,7 @@ logger.addHandler(handler)
 
 def send_message(bot, message):
     """Отправляет сообщение."""
-    # тут сделал обработку ошибок, т.к., в main у меня в
+    # тут сделал обработку ошибок, т.к. в main у меня в
     # блоке обработки ошибок вызывается эта функция и тут
     # проще все это сделать.
     try:
@@ -57,13 +57,17 @@ def get_api_answer(current_timestamp):
     Получает ответ api, если сервер недоступен,
     то выводится ошибка с кодом ответа сервера.
     """
-    timestamp = current_timestamp
+    timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
+    # Так у нас же get_api_answer() из мейн вызывается, там и будет
+    # вызвано исключение, отправлено сообщение в телеграмм и
+    # сделана запись в логи
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    # а вот и то что вызовет исключение если сервер вышлет что то
+    # отличное от 200го ответа
     if response.status_code != 200:
-        raise api_error(
-            f'Эндпоинт https://practicum.yandex.ru/'
-            f'api/user_api/homework_statuses/'
+        raise ApiError(
+            f'Эндпоинт {ENDPOINT} '
             f'недоступен. Код ответа API: {response.status_code}'
         )
     return response.json()
@@ -74,8 +78,11 @@ def check_response(response):
     Проверка ответа api на корректность,
     ожидаем список.
     """
-    if type(response['homeworks']) != list:
-        raise parse_error('некорректный ответ API.')
+    # Через get не хочет
+    if type(response['homeworks']) is not list:
+        raise NotListError(
+            'некорректный ответ API. "Homeworks" должен быть списком'
+        )
     return response['homeworks']
 
 
@@ -84,7 +91,7 @@ def parse_status(homework):
     homework_name = homework['homework_name']
     homework_status = homework['status']
     if homework_status not in HOMEWORK_STATUSES.keys():
-        raise status_key_error(
+        raise StatusKeyError(
             'недокументированный статус домашней работы, '
             'обнаруженный в ответе API'
         )
@@ -114,7 +121,7 @@ def main():
             'Ошибка: отсутствие обязательных переменных '
             'окружения во время запуска бота!'
         )
-        raise token_error
+        raise TokenError
 
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
@@ -138,8 +145,8 @@ def main():
                 status_cache = status
             else:
                 logger.debug('В ответе отсутствуют новые статусы.')
-            time.sleep(RETRY_TIME)
-            logger.info('Повторная проверка.')
+            # Обновили timestamp перед слипом
+            current_timestamp = response.get('current_date')
         except Exception as error:
             message = f'Сбой в работе программы: {error}'
             # что бы не слать одни и те же оишбки в телеграмм
@@ -149,7 +156,8 @@ def main():
                 send_message(bot, message)
                 error_cache = message
             logger.error(message)
-            time.sleep(RETRY_TIME)
+        time.sleep(RETRY_TIME)
+        logger.info('Повторная проверка.')
 
 
 if __name__ == '__main__':

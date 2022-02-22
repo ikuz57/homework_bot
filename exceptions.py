@@ -1,18 +1,17 @@
-# вот думаю, а может и не надо было этого
-class token_error(Exception):
+class TokenError(Exception):
     pass
 
 
-class api_error(Exception):
+class ApiError(Exception):
     def __init__(self, text):
         self.txt = text
 
 
-class parse_error(Exception):
+class NotListError(Exception):
     def __init__(self, text):
         self.txt = text
 
 
-class status_key_error(Exception):
+class StatusKeyError(Exception):
     def __init__(self, text):
         self.txt = text
